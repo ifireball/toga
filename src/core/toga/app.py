@@ -1,13 +1,25 @@
 import signal
 import sys
 from builtins import id as identifier
-from email.message import Message
+from collections import defaultdict
 
 try:
     from importlib import metadata as importlib_metadata
 except ImportError:
     # Backwards compatibility - imporlib.metadata was added in Python 3.8
     import importlib_metadata
+except FileNotFoundError:
+    # We're in a strange interpreter that does not raise ImportError properly
+    # (E.g Brython) it probably does not handle metadata either, so we'll make
+    # our own stub implementation
+    class importlib_metadata:
+        @classmethod
+        def metadata(cls, module_name):
+            raise cls.PackageNotFoundError
+
+        class PackageNotFoundError(Exception):
+            pass
+
 
 from toga.command import CommandSet
 from toga.handlers import wrapped_handler
@@ -123,7 +135,7 @@ class App:
         try:
             self.metadata = importlib_metadata.metadata(self.module_name)
         except importlib_metadata.PackageNotFoundError:
-            self.metadata = Message()
+            self.metadata = defaultdict(lambda: None)
 
         # Now that we have metadata, we can fix the app name (in the case
         # where the app name and the module name differ - e.g., an app name
