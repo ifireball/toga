@@ -41,5 +41,8 @@ def get_platform_factory(factory=None):
     elif sys.platform == 'win32':
         from toga_winforms import factory
         return factory
+    elif sys.platform == 'brython':
+        from toga_brython import factory
+        return factory
     else:
         raise RuntimeError("Couldn't identify a supported host platform.")
