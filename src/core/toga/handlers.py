@@ -1,4 +1,7 @@
-import asyncio
+try:
+    import asyncio
+except ImportError:
+    asyncio = None
 import inspect
 import sys
 import traceback
@@ -45,6 +48,13 @@ def wrapped_handler(interface, handler, cleanup=None):
     the interface as context. The wrapper function is annotated with
     the original handler function on the `_raw` attribute.
     """
+    if asyncio is not None:
+        # Use asyncio-based implementation on platforms that have it
+        return asyncio_wrapped_handler(interface, handler, cleanup)
+    # Fallback to a simple and limited implementation
+    return synchronous_wrapped_handler(interface, handler, cleanup)
+
+def asyncio_wrapped_handler(interface, handler, cleanup=None):
     if handler:
         def _handler(widget, *args, **kwargs):
             if asyncio.iscoroutinefunction(handler):
@@ -69,3 +79,19 @@ def wrapped_handler(interface, handler, cleanup=None):
         _handler._raw = handler
 
         return _handler
+
+def synchronous_wrapped_handler(interface, handler, cleanup):
+    if not handler:
+        return
+    result = handler(interface, *args, **kwargs)
+    if inspect.isgenerator(result):
+        raise NotImplementedError(
+            "async/generator event callbacks are not supported on this platform"
+        )
+    try:
+        if cleanup:
+            cleanup()
+        return result
+    except Exception as e:
+        print('Error in handler:', e, file=sys.stderr)
+        traceback.print_exc()
